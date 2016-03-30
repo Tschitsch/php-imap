@@ -427,9 +427,17 @@ class Mailbox {
      * @return IncomingMail
      */
 	public function getMail($mailId, $markAsSeen = true) {
-		$head = imap_rfc822_parse_headers(imap_fetchheader($this->getImapStream(), $mailId, FT_UID));
+		$rawHead = imap_fetchheader($this->getImapStream(), $mailId, FT_UID);
+		$head = imap_rfc822_parse_headers($rawHead);
+
+		preg_match_all("/^(?P<header>[A-Za-z-]+): (?P<value>[^\r\n]+)/ims", $rawHead, $matchedHeaders, PREG_SET_ORDER);
+		$headers = [];
+		foreach($matchedHeaders as $matchedHeader) {
+			$headers[$matchedHeader["header"]] = $matchedHeader["value"];
+		}
 
 		$mail = new IncomingMail();
+		$mail->headers = $headers;
 		$mail->id = $mailId;
 		$mail->date = date('Y-m-d H:i:s', isset($head->date) ? strtotime(preg_replace('/\(.*?\)/', '', $head->date)) : time());
 		$mail->subject = isset($head->subject) ? $this->decodeMimeStr($head->subject, $this->serverEncoding) : null;
